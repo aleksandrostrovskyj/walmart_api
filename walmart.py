@@ -64,7 +64,7 @@ class WalmartBase:
         logging.info('Check token lifetime...')
         if (datetime.timestamp(datetime.now()) - token_data['timestamp']) > 860:
             logging.info('Token has been expired.')
-            cls.save_token(cls.request_token())
+            token_data = cls.save_token(cls.request_token())
 
         return token_data['access_token']
 
@@ -96,7 +96,7 @@ class WalmartBase:
         """
         Method to save token to the local .pickle file
         :param response: response with token data that received via request_token method
-        :return: True
+        :return: token_data, dict
         """
         token_data = response.json()
         token_data.update({'timestamp': datetime.timestamp(datetime.now())})
@@ -105,7 +105,7 @@ class WalmartBase:
             pickle.dump(file=f, obj=token_data)
 
         logging.info('Token has been saved to the file.')
-        return True
+        return token_data
 
     def sign_request(func):
         """
@@ -116,7 +116,7 @@ class WalmartBase:
             logging.info('Try to sign request with auth token.')
             logging.info('Load token from local file.')
             headers = {
-                'WM_SEC.ACCESS_TOKEN': self.local_token() or self.request_token(),
+                'WM_SEC.ACCESS_TOKEN': self.local_token(),
                 'WM_CONSUMER.CHANNEL.TYPE': '0f3e4dd4-0514-4346-b39d-af0e00ea066d',
                 'Accept': 'application/json',
                 **self.headers
@@ -196,7 +196,7 @@ class WalmartOrders(WalmartBase):
         """
         while True:
             response = self.api_get(api_url='/v3/orders', params=params)
-            yield response.json()
+            yield response
             # Url params of the next page
             next_cursor = response.json()['list']['meta']['nextCursor']
             # Check if next page exist
@@ -204,7 +204,6 @@ class WalmartOrders(WalmartBase):
                 break
 
             params = {k: v[0] for k, v in urllib.parse.parse_qs(next_cursor[1:]).items()}
-            print(params)
 
 
 def test_orders_list(params):
@@ -212,12 +211,14 @@ def test_orders_list(params):
     Test launch
     """
     walmart = WalmartOrders()
-    data = walmart.orders_list(params=params)
-    json_data = json.dumps(data.json(), indent=3)
+    page_count = 0
+    for page in walmart.orders_list(params=params):
+        page_count += 1
+        json_data = json.dumps(page.json(), indent=3)
 
-    with open('walmart2.json', 'w') as f:
-        f.writelines(json_data)
+        with open(f'test_results\\walmart_{page_count}.json', 'w') as f:
+            f.writelines(json_data)
 
-    with open('walmart2.pickle', 'wb') as f:
-        pickle.dump(file=f, obj=data)
+        with open(f'test_results\\walmart_{page_count}.pickle', 'wb') as f:
+            pickle.dump(file=f, obj=page)
 

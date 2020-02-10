@@ -44,3 +44,6 @@ config/
 
 # helpers
 db_helper.py
+
+# Tests
+test_results/

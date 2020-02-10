@@ -36,6 +36,9 @@ def delete_order_general_data(cursor, date_from: 'date string'):
 
 
 def insert_order_data(cursor, data_to_insert, table):
+    if not data_to_insert:
+        logging.info('No data to insert, skip.')
+        return cursor
     sql_insert_query = f"""
         insert ignore into walmart.{table}
         values {data_to_insert}

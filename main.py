@@ -11,34 +11,35 @@ logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s',
 def main(start_date):
     walmart = WalmartOrders()
     params = {
-        'createdStartDate': start_date
+        'createdStartDate': start_date,
+        'limit': '200'
     }
-    for orders in walmart.orders_list(params):
+    order_general = []
+    order_charges = []
+    order_refunds = []
 
-        order_general = []
-        order_charges = []
-        order_refunds = []
-
+    for response_page in walmart.orders_list(params):
+        orders = response_page.json()
         for order in orders['list']['elements']['order']:
-            a = parse_walmart_order(order)
-            order_general.extend(a[0])
-            order_charges.extend(a[1])
-            order_refunds.extend(a[2])
+            parsed = parse_walmart_order(order)
+            order_general.extend(parsed[0])
+            order_charges.extend(parsed[1])
+            order_refunds.extend(parsed[2])
 
-        order_general_to_insert = str(order_general).strip('[]')
-        order_charges_to_insert = str(order_charges).strip('[]')
-        order_refunds_to_insert = str(order_refunds).strip('[]')
+    order_general_to_insert = str(order_general).strip('[]')
+    order_charges_to_insert = str(order_charges).strip('[]')
+    order_refunds_to_insert = str(order_refunds).strip('[]')
 
-        with Mysql() as db:
-            cursor = db.cursor()
-            cursor = delete_order_general_data(cursor, start_date)
-            cursor = insert_order_data(cursor, order_general_to_insert, 'walmart_order_general_data')
-            cursor = insert_order_data(cursor, order_charges_to_insert, 'walmart_order_charges')
-            cursor = insert_order_data(cursor, order_refunds_to_insert, 'walmart_order_refund_data')
-            logging.info('Commit changes')
-            db.commit()
-            cursor.close()
-        logging.info('Finish.')
+    with Mysql() as db:
+        cursor = db.cursor()
+        cursor = delete_order_general_data(cursor, start_date)
+        cursor = insert_order_data(cursor, order_general_to_insert, 'walmart_order_general_data')
+        cursor = insert_order_data(cursor, order_charges_to_insert, 'walmart_order_charges')
+        cursor = insert_order_data(cursor, order_refunds_to_insert, 'walmart_order_refund_data')
+        logging.info('Commit changes')
+        db.commit()
+        cursor.close()
+    logging.info('Finish.')
 
 
 if __name__ == '__main__':
