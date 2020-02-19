@@ -7,8 +7,6 @@ from pathlib import Path
 from settings import config
 from datetime import datetime
 
-logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s',
-                    level=logging.INFO)
 
 BASE_DIR = Path(__file__).parent
 
@@ -115,10 +113,11 @@ class WalmartBase:
         def sign(self, *args, **kwargs):
             logging.info('Try to sign request with auth token.')
             logging.info('Load token from local file.')
+            child_headers = kwargs.pop('headers') if 'headers' in kwargs else {}
             headers = {
                 'WM_SEC.ACCESS_TOKEN': self.local_token(),
                 'WM_CONSUMER.CHANNEL.TYPE': '0f3e4dd4-0514-4346-b39d-af0e00ea066d',
-                'Accept': 'application/json',
+                **child_headers,
                 **self.headers
             }
             logging.info('Token added to the request.')
@@ -137,12 +136,12 @@ class WalmartBase:
         :param args:
         :param api_url:
         :param kwargs:
-        :return: response object
+        :return: requests.Response() object
         """
         return requests.get(*args, **kwargs)
 
 
-class WalmartOrders(WalmartBase):
+class Walmart(WalmartBase):
     """
     Class that can realize methods per each API entity on Walmart
     """
@@ -192,10 +191,13 @@ class WalmartOrders(WalmartBase):
                 : string
                 : optional
 
-        :return: response object
+        :return: requests.Response() object
         """
+        headers = {
+            'Accept': 'application/json'
+        }
         while True:
-            response = self.api_get(api_url='/v3/orders', params=params)
+            response = self.api_get(api_url='/v3/orders', params=params, headers=headers)
             yield response
             # Url params of the next page
             next_cursor = response.json()['list']['meta']['nextCursor']
@@ -205,20 +207,29 @@ class WalmartOrders(WalmartBase):
 
             params = {k: v[0] for k, v in urllib.parse.parse_qs(next_cursor[1:]).items()}
 
+    def available_recon_reports(self):
+        """
+        List all the available Marketplace reconciliation report dates
+        :return: requests.Response() object
+        """
+        headers = {
+            'Accept': 'application/json'
+        }
+        url = '/v3/report/reconreport/availableReconFiles'
+        return self.api_get(api_url=url, headers=headers)
 
-def test_orders_list(params):
-    """
-    Test launch
-    """
-    walmart = WalmartOrders()
-    page_count = 0
-    for page in walmart.orders_list(params=params):
-        page_count += 1
-        json_data = json.dumps(page.json(), indent=3)
-
-        with open(f'test_results\\walmart_{page_count}.json', 'w') as f:
-            f.writelines(json_data)
-
-        with open(f'test_results\\walmart_{page_count}.pickle', 'wb') as f:
-            pickle.dump(file=f, obj=page)
-
+    def get_recon_report(self, report_date):
+        """
+        Download the reconciliation report for a specific date
+        :param report_date: date that return returns by available_recon_reports()
+        :return: requests.Response() object; the content of the response is Zip-file
+                 that contains the csv report
+        """
+        url = '/v3/report/reconreport/reconFile'
+        headers = {
+            'Accept': 'application/octet-stream'
+        }
+        params = {
+            'reportDate': report_date
+        }
+        return self.api_get(api_url=url, headers=headers, params=params)

@@ -47,3 +47,26 @@ def insert_order_data(cursor, data_to_insert, table):
     cursor.execute(sql_insert_query)
     return cursor
 
+
+def insert_recon_data(cursor, data_to_insert):
+    if not data_to_insert:
+        logging.info('No data to insert, skip.')
+        return cursor
+    sql_insert_query = f"""
+        insert ignore into walmart.recon_report
+        values {data_to_insert}
+    """
+    logging.info('Execute insert query.')
+    cursor.execute(sql_insert_query)
+    return cursor
+
+
+def delete_recon_data(cursor, avail_date):
+    # Delete old data
+    sql_delete_query = f"""
+            delete from walmart.recon_report
+            where report_available_date = '{avail_date}'
+        """
+    logging.info('Execute delete query.')
+    cursor.execute(sql_delete_query)
+    return cursor

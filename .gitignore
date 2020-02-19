@@ -47,3 +47,9 @@ db_helper.py
 
 # Tests
 test_results/
+
+# Logs
+*.log
+
+# pickles
+*.pickle
